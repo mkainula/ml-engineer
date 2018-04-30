@@ -50,29 +50,14 @@ load_pack("pandas-numpy-pack")
 
 from sklearn.datasets import load_iris
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.preprocessing import LabelEncoder
 import pandas as pd
 import numpy as np
 from sklearn.externals import joblib
 
-feature_names = ['sepal length (cm)', 'sepal width (cm)', 'petal length (cm)', 'petal width (cm)']
-target_names = ['setosa', 'versicolor', 'virginica']
-
-def train_classifier(iris):
-    """Trains a model, returns a structure to persist"""
-
-    df = pd.DataFrame(iris.data, columns=feature_names)
-    df['species'] = pd.Categorical.from_codes(iris.target, target_names)
-    df['is_train'] = np.random.uniform(0, 1, len(df)) <= .75
-
-    train_data = df[df['is_train']==True]
-    y = pd.factorize(train_data['species'])[0]
-
-    # Create a random forest Classifier. By convention, clf means 'Classifier'
+def train_classifier(x, y):
     clf = RandomForestClassifier(n_jobs=2, random_state=0)
-
-    # Train the Classifier to take the training features and learn how they relate
-    # to the training y (the species)
-    print clf.fit(train_data[feature_names], y)
+    clf.fit(x, y)
     return clf
 
 def store_model_to_s3(model, bucket, key):
@@ -86,9 +71,14 @@ def lambda_handler(event, context):
     """Entry point of training Lambda event execution"""
 
     np.random.seed(0)
-    iris = load_iris()
-
-    model = train_classifier(iris)
+    headers = ['age', 'workclass', 'fnlwgt', 'education', 'education-num', 'marital-status', 'occupation', 'relationship', 'race', 'sex', 'capital-gain', 'capital-loss', 'hours-per-week', 'native-country', 'income']
+    train_data = pd.read_csv("https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.data",names=headers)
+    encoder = LabelEncoder()
+    train_data['sex_dummy'] = encoder.fit_transform(train_data['sex'])
+    train_data['income_dummy'] = encoder.fit_transform(train_data['income'])
+    x = train_data[['age', 'fnlwgt', 'education-num', 'capital-gain', 'capital-loss', 'hours-per-week', 'sex_dummy']]
+    y = train_data['income_dummy']
+    model = train_classifier(x, y)
 
     store_model_to_s3(model, os.environ['STACK_NAME'], "model.pkl")
 

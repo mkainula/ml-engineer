@@ -52,8 +52,8 @@ import pandas as pd
 import numpy as np
 from sklearn.externals import joblib
 
-feature_names = ['sepal length (cm)', 'sepal width (cm)', 'petal length (cm)', 'petal width (cm)']
-target_names = ['setosa', 'versicolor', 'virginica']
+feature_names = ['age', 'fnlwgt', 'education-num', 'capital-gain', 'capital-loss', 'hours-per-week', 'sex_dummy']
+target_names = ['income_encoded']
 
 def fetch_model(bucket, key):
     """Fetches a model from S3, return the model read into memory with joblib"""
@@ -67,13 +67,17 @@ def fetch_model(bucket, key):
 
 def predict(model, params):
     """Returns a prediction based on model and parameters"""
-    df = pd.DataFrame(data = [[params["sepal_length"],
-                               params["sepal_width"],
-                               params["petal_length"],
-                               params["petal_width"]]],
+    
+    df = pd.DataFrame(data = [[params["age"],
+                               params["fnlwgt"],
+                               params["education-num"],
+                               params["capital-gain"],
+                               params["capital-loss"],
+                               params["hours-per-week"],
+                               params["sex_dummy"]]],
                       columns=feature_names)
-    return np.array(target_names)[model.predict(df)][0]
-
+    return model.predict(df)[0]
+    
 def lambda_handler(event, context):
     """
     Entry point of training Lambda event execution.
@@ -87,3 +91,4 @@ def lambda_handler(event, context):
     return {"statusCode": 200,
             "isBase64Encoded": False,
             "body": str(result)}
+
